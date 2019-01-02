@@ -9,7 +9,39 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+
+interface MsgParser {
+    void parser(String[] msg);
+}
+
+class MyPoint extends Point {
+    private Color color;
+    private int strokeType;
+    private boolean continuous;
+
+    MyPoint(int x, int y, Color color, int stroke, boolean cont) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        strokeType = stroke;
+        continuous = cont;
+    }
+
+    Color getColor() {
+        return color;
+    }
+
+    int getStroke() {
+        int[] strokes = {2, 5, 15};
+        return strokes[strokeType];
+    }
+
+    boolean getContinuous() {
+        return continuous;
+    }
+}
 
 public class PlayRoom extends UI {
     private JPanel panel;
@@ -28,7 +60,7 @@ public class PlayRoom extends UI {
     private int round, timeLeft;
     private String myName;
     private Timer timer;
-    private List<String> playerList, msgList;
+    private List<String> nameList, msgList;
     private List<Integer> scoreList;
     private List<Boolean> aliveList;
     private PaintBoard paintBoard;
@@ -37,20 +69,16 @@ public class PlayRoom extends UI {
         gameOver = false;
         myName = name;
         interact = client;
+        round = 0;
 
-        playerList = new ArrayList<>();
+        nameList = new ArrayList<>();
         scoreList = new ArrayList<>();
         msgList = new ArrayList<>();
         aliveList = new ArrayList<>();
-
-        setUIComponents();
-        appear();
-        setTimer();
-        listenForMsg();
     }
 
-    // Set up the UI components, and their event listeners.
-    private void setUIComponents() {
+    @Override
+    void setUIComponents() {
         panel = new JPanel();
         panel.setLayout(null);
         width = 1020;
@@ -120,10 +148,7 @@ public class PlayRoom extends UI {
         commentText.addKeyListener(new KeyAdapter() {
             @Override
             public void keyReleased(KeyEvent e) {
-                if (commentText.getText().length() > 0)
-                    sendButton.setEnabled(true);
-                else
-                    sendButton.setEnabled(false);
+                sendButton.setEnabled(commentText.getText().length() > 0);
             }
         });
 
@@ -134,9 +159,57 @@ public class PlayRoom extends UI {
 
         sendButton.setEnabled(false);
         sendButton.addActionListener(e -> {
-            interact.sendMsg("guess," + commentText.getText());
+            // If the content includes ',', then the message after the ',' will be ignored when parsing it.
+            interact.sendMsg("guess," + commentText.getText().replaceAll(",", "，"));
             commentText.setText("");
         });
+
+        setTimer();
+    }
+
+    @Override
+    JPanel getPanel() {
+        return panel;
+    }
+
+    @Override
+    void listenToServer() {
+        // Put the parser function of each command into an hash map.
+        // This is designed to avoid if-else and switches.
+        HashMap<String, MsgParser> parserDict = new HashMap<>();
+        parserDict.put("name", new NameParser());
+        parserDict.put("draw", new DrawParser());
+        parserDict.put("guess", new GuessParser());
+        parserDict.put("quit", new QuitParser());
+        parserDict.put("right", new RightParser());
+        parserDict.put("wrong", new WrongParser());
+        parserDict.put("paint", new PaintParser());
+        parserDict.put("clear", new ClearParser());
+        parserDict.put("time", new TimeParser());
+
+        // Receive messages and parse them.
+        while (true) {
+            String raw = interact.recvMsg();
+            try {
+                String[] msg = raw.split(",");
+                if ("stop".equals(msg[0]))
+                    break;
+                if (parserDict.containsKey(msg[0]))
+                    parserDict.get(msg[0]).parser(msg);
+            } catch (IndexOutOfBoundsException e) {
+                e.printStackTrace();
+                System.out.println("Something wrong with server's message");
+                System.out.println(raw);
+            }
+        }
+    }
+
+    @Override
+    void nextStage() {
+        disappear();
+        System.out.println("Going to leader board.");
+        LeaderBoard leaderBoard = new LeaderBoard(myName, interact);
+        leaderBoard.showAndReact();
     }
 
     // Set up the timer task.
@@ -156,9 +229,10 @@ public class PlayRoom extends UI {
                         Thread.sleep(1000);
                     } else {
                         updateMsg("游戏结束");
+                        paintBoard.setMouseDraw(false);
                         Thread.sleep(2000);
                         // Go to next stage.
-                        nextStage();
+                        timer.stop();
                     }
                 } catch (InterruptedException ie) {
                     ie.printStackTrace();
@@ -170,113 +244,6 @@ public class PlayRoom extends UI {
                 time = "<html><font color='red'>" + time + "</font></html>";
             timeLabel.setText(time);
         });
-    }
-
-    // Listen for the server's messages.
-    private void listenForMsg() {
-        while (true) {
-            String raw = interact.recvMsg();
-            try {
-                String[] msg = raw.split(",");
-
-                // The first parameter is the type of event.
-                // The second parameter is the name of player.
-                // The third parameter, if any, is the content of event.
-                int index = playerList.indexOf(msg[1]);
-
-                // The name of player is not found.
-                // The name can also be 'all', which means to notify all players.
-                if (index == -1 && !"all".equals(msg[1]))
-                    break;
-
-
-                // Initialize the game: set names of players.
-                // msg[1] is set "all".
-                if ("names".equals(msg[0])) {
-                    for (int i = 2; i < msg.length; i++) {
-                        playerList.add(msg[i]);
-                        scoreList.add(0);
-                        aliveList.add(true);
-                    }
-                    updateScore(0, 0);
-
-
-                    // Start a new round of game.
-                } else if ("draw".equals(msg[0])) {
-                    // I am the one to draw.
-                    sendButton.setEnabled(false);
-                    hintLabel.setText("我画" + msg[2]);
-                    commentText.setEnabled(false);
-                    commentText.setText("轮到你画，不能发消息");
-                    paintBoard.setMouseDraw(true);
-                    shouldDraw = true;
-                    startNewRound();
-
-                } else if ("guess".equals(msg[0])) {
-                    // I am the one to guess.
-                    hintLabel.setText("我猜" + msg[2] + ";" + msg[3] + "个字");
-                    commentText.setEnabled(true);
-                    commentText.setText("在这里输入你的猜测");
-                    paintBoard.setMouseDraw(false);
-                    shouldDraw = false;
-                    startNewRound();
-
-
-                    // Others' messages.
-                } else if ("quit".equals(msg[0])) {
-                    updateMsg(msg[1] + "退出了房间");
-                    aliveList.set(index, false);
-                    updateScore(0, 0);
-
-                } else if ("right".equals(msg[0])) {
-                    int plusScore = 3;
-                    if (timeLeft < 30)
-                        plusScore = 1;
-                    updateMsg(msg[1] + "猜对了答案，加" + plusScore + "分");
-                    updateScore(index, plusScore);
-
-                } else if ("wrong".equals(msg[0])) {
-                    updateMsg(msg[1] + ":" + msg[2]);
-
-
-                    // Painting messages.
-                } else if ("paint".equals(msg[0])) {
-                    // In the paint event, the painter will ignore the messages,
-                    // while other players receive them.
-                    if (!shouldDraw) {
-                        // Format of message: x, y, color, stroke.
-                        // MUST assign color and stroke before adding points.
-                        paintBoard.setColor(Integer.parseInt(msg[4]));
-                        paintBoard.setStroke(Integer.parseInt(msg[5]));
-                        boolean continuous = Integer.parseInt(msg[6]) != 0;
-                        paintBoard.addPoint(Integer.parseInt(msg[2]), Integer.parseInt(msg[3]), continuous);
-                    }
-
-                } else if ("clear".equals(msg[0])) {
-                    if (!shouldDraw) {
-                        paintBoard.clear();
-                        updateMsg("画布被清空了");
-                    }
-
-
-                    // Time messages.
-                } else if ("time".equals(msg[0])) {
-                    if (timeLeft > 30) {
-                        timeLeft = 30;
-                        updateMsg("时间缩短为30秒");
-                    }
-                } else if ("stop".equals(msg[0])) {
-                    timeLeft = 0;
-                    gameOver = true;
-                    break;
-                }
-            } catch (IndexOutOfBoundsException e) {
-                e.printStackTrace();
-                System.out.println("Something wrong with server's message");
-                System.out.println(raw);
-            }
-        }
-        // The name is not found, or the server said "stop,break".
     }
 
     // Start a new round of game.
@@ -330,11 +297,11 @@ public class PlayRoom extends UI {
         if (plusScore > 0)
             scoreList.set(index, scoreList.get(index) + plusScore);
         StringBuilder scoreTextContent = new StringBuilder();
-        for (int i = 0; i < playerList.size(); i++) {
+        for (int i = 0; i < nameList.size(); i++) {
             StringBuilder temp = new StringBuilder();
             if (!aliveList.get(i))
                 temp.append("(已退出)");
-            temp.append(playerList.get(i));
+            temp.append(nameList.get(i));
             temp.append("\t:");
             temp.append(scoreList.get(i));
             temp.append("\n\n");
@@ -343,20 +310,7 @@ public class PlayRoom extends UI {
         scoreText.setText(scoreTextContent.toString());
     }
 
-    @Override
-    JPanel getPanel() {
-        return panel;
-    }
-
-    // TODO: Go to the ranks page.
-    @Override
-    void nextStage() {
-        disappear();
-        System.out.println("Going to leader board.");
-        LeaderBoard leaderBoard = new LeaderBoard(myName, interact);
-    }
-
-    // Class for paint board.
+    // Class for painting board.
     class PaintBoard extends JPanel {
         private boolean mouseDraw = false;
         private Color color = Color.black;
@@ -384,20 +338,6 @@ public class PlayRoom extends UI {
             this.addMouseMotionListener(detector);
         }
 
-        // Clear the board.
-        void clear() {
-            pointList.clear();
-            this.repaint();
-        }
-
-        void addPoint(int x, int y, boolean continuous) {
-            MyPoint point = new MyPoint(x, y, color, strokeType, continuous);
-            pointList.add(point);
-            this.repaint();
-            String isContinues = continuous ? "1" : "0";
-            interact.sendMsg("paint," + x + "," + y + "," + colorIndex + "," + strokeType + "," + isContinues);
-        }
-
         @Override
         public void paint(Graphics g) {
             super.paint(g);
@@ -418,6 +358,20 @@ public class PlayRoom extends UI {
             }
         }
 
+        // Clear the board.
+        void clear() {
+            pointList.clear();
+            this.repaint();
+        }
+
+        void addPoint(int x, int y, boolean continuous) {
+            MyPoint point = new MyPoint(x, y, color, strokeType, continuous);
+            pointList.add(point);
+            this.repaint();
+            String isContinuous = continuous ? "1" : "0";
+            interact.sendMsg("paint," + x + "," + y + "," + colorIndex + "," + strokeType + "," + isContinuous);
+        }
+
         void setColor(int index) {
             colorIndex = index;
             Color[] colors = {Color.black, Color.white, Color.red, Color.yellow, Color.blue, Color.green, Color.pink};
@@ -430,6 +384,112 @@ public class PlayRoom extends UI {
 
         void setMouseDraw(boolean status) {
             mouseDraw = status;
+        }
+    }
+
+    // Class for parsing command "name".
+    class NameParser implements MsgParser {
+        @Override
+        public void parser(String[] msg) {
+            for (int i = 1; i < msg.length; i++) {
+                nameList.add(msg[i]);
+                scoreList.add(0);
+                aliveList.add(true);
+            }
+            updateScore(0, 0);
+        }
+    }
+
+    // Class for parsing command "draw".
+    class DrawParser implements MsgParser {
+        @Override
+        public void parser(String[] msg) {
+            sendButton.setEnabled(false);
+            hintLabel.setText("我画" + msg[2]);
+            commentText.setEnabled(false);
+            commentText.setText("轮到你画，不能发消息");
+            paintBoard.setMouseDraw(true);
+            shouldDraw = true;
+            startNewRound();
+        }
+    }
+
+    // Class for parsing command "guess".
+    class GuessParser implements MsgParser {
+        @Override
+        public void parser(String[] msg) {
+            hintLabel.setText("我猜" + msg[2] + ";" + msg[3] + "个字");
+            commentText.setEnabled(true);
+            commentText.setText("在这里输入你的猜测");
+            paintBoard.setMouseDraw(false);
+            shouldDraw = false;
+            startNewRound();
+        }
+    }
+
+    // Class for parsing command "quit".
+    class QuitParser implements MsgParser {
+        @Override
+        public void parser(String[] msg) {
+            updateMsg(msg[1] + "退出了房间");
+            aliveList.set(nameList.indexOf(msg[1]), false);
+            updateScore(0, 0);
+        }
+    }
+
+    class RightParser implements MsgParser {
+        @Override
+        public void parser(String[] msg) {
+            int plusScore = 3;
+            if (timeLeft < 30)
+                plusScore = 1;
+            updateMsg(msg[1] + "猜对了答案，加" + plusScore + "分");
+            updateScore(nameList.indexOf(msg[1]), plusScore);
+        }
+    }
+
+    class WrongParser implements MsgParser {
+
+        @Override
+        public void parser(String[] msg) {
+            updateMsg(msg[1] + ":" + msg[2]);
+        }
+    }
+
+    class PaintParser implements MsgParser {
+
+        @Override
+        public void parser(String[] msg) {
+            if (shouldDraw)
+                return;
+            // Format of message: x, y, color, stroke.
+            // MUST assign color and stroke before adding points.
+            paintBoard.setColor(Integer.parseInt(msg[4]));
+            paintBoard.setStroke(Integer.parseInt(msg[5]));
+            boolean continuous = Integer.parseInt(msg[6]) != 0;
+            paintBoard.addPoint(Integer.parseInt(msg[2]), Integer.parseInt(msg[3]), continuous);
+        }
+    }
+
+    class ClearParser implements MsgParser {
+
+        @Override
+        public void parser(String[] msg) {
+            if (shouldDraw)
+                return;
+            paintBoard.clear();
+            updateMsg("画布被清空了");
+        }
+    }
+
+    class TimeParser implements MsgParser {
+
+        @Override
+        public void parser(String[] msg) {
+            if (timeLeft <= 30)
+                return;
+            timeLeft = 30;
+            updateMsg("时间缩短为30秒");
         }
     }
 }

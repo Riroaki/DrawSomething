@@ -49,6 +49,7 @@ public class Client implements Interact {
     private void run() {
         // Enter the room.
         Login login = new Login(this);
+        login.showAndReact();
     }
 
     @Override

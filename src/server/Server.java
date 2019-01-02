@@ -14,10 +14,9 @@ public class Server {
     private TopicGenerator topicGenerator;
     private final int PORT = 12409;
     private final int MAX_CONNECT = 8;
-    private int connect;
+    private static int connect = 0;
     private ServerSocket serverSocket;
     private List<ServerThread> threadList;
-    private ThreadsController controller;
 
     public static void main(String[] args) {
         Server server = new Server();
@@ -28,9 +27,7 @@ public class Server {
 
     // Initialize the server.
     private int init() {
-        connect = 0;
         threadList = new ArrayList<>();
-        controller = new ThreadsController();
         try {
             topicGenerator = new TopicGenerator();
             serverSocket = new ServerSocket(PORT);
@@ -38,7 +35,6 @@ public class Server {
             System.out.println("Fail to initialize the server due to some exception(s).");
             return 1;
         }
-        new Thread(controller).start();
         return 0;
     }
 
@@ -46,7 +42,7 @@ public class Server {
     private void run() {
         try {
             // Waiting for players to enter the room.
-            while (connect < MAX_CONNECT) {
+            while (getConnect() < MAX_CONNECT) {
                 Socket client = serverSocket.accept();
                 ServerThread st = new ServerThread(client, connect);
                 threadList.add(st);
@@ -57,48 +53,15 @@ public class Server {
         }
     }
 
-    private synchronized void changeConnect(int diff) {
-        connect += diff;
+    private void changeConnect(int diff) {
+        synchronized ((Integer) connect) {
+            connect += diff;
+        }
     }
 
-    private synchronized int getConnect() {
-        return connect;
-    }
-
-    private class ThreadsController extends Thread {
-        @Override
-        public void run() {
-            int currentConnect = getConnect();
-            // TODO: needs improvement for checking connections.
-            while (true) {
-                try {
-                    if (currentConnect != connect) {
-                        currentConnect = connect;
-                        sendAll(Integer.toString(currentConnect));
-                        Thread.sleep(200);
-                    }
-                }catch (InterruptedException e) {
-                    e.printStackTrace();
-                    die(1);
-                }
-            }
-        }
-
-        void die(int status) {
-            System.exit(status);
-        }
-
-        void sendAll(String msg) {
-            for (ServerThread thread : threadList) {
-                try {
-                    if (thread.getPlayerState() == 1) {
-                        thread.output.writeUTF(msg);
-                        thread.setPlayerState(2);
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
+    private int getConnect() {
+        synchronized ((Integer) connect) {
+            return connect;
         }
     }
 
@@ -130,12 +93,16 @@ public class Server {
             }
         }
 
-        synchronized int getPlayerState() {
-            return playerState;
+        int getPlayerState() {
+            synchronized ((Integer) playerState) {
+                return playerState;
+            }
         }
 
-        synchronized void setPlayerState(int state) {
-            playerState = state;
+        void setPlayerState(int state) {
+            synchronized ((Integer) playerState) {
+                playerState = state;
+            }
         }
 
         // Run the thread.
@@ -155,8 +122,7 @@ public class Server {
 //                            output.writeUTF("Please start the game.");
                             String msg = input.readUTF();
                             if ("start".equals(msg)) {
-                                controller.sendAll("start");
-                                controller.die(0);
+                                // Send start message to all.
                             }
                         } catch (IOException e) {
                             e.printStackTrace();

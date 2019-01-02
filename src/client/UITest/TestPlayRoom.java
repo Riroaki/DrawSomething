@@ -72,5 +72,6 @@ public class TestPlayRoom implements Interact {
     public static void main(String[] args) {
         TestPlayRoom test = new TestPlayRoom();
         PlayRoom playRoom = new PlayRoom(test, "llq");
+        playRoom.showAndReact();
     }
 }

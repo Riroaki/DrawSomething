@@ -1,6 +1,5 @@
 package client.UI;
 
-import client.Client;
 import client.Interact;
 
 import javax.swing.*;
@@ -12,69 +11,57 @@ public class WaitingRoom extends UI {
     private JButton startButton;
     private JLabel noteLabel;
 
-    private boolean isHost = false;
+    private boolean isHost;
     private String myName;
+    private int myIndex, currentPlayers;
 
-    public JPanel getPanel() {
-        return panel;
-    }
-
-    WaitingRoom(Interact client, String name, int index, int current) {
+    public WaitingRoom(Interact client, String name, int index, int current) {
         width = 330;
         height = 70;
         interact = client;
         myName = name;
-        if (index == 0)
-            isHost = true;
-        whoAmI.setText("我是:" + name + "，第" + index + "位玩家");
-        updateMsg(current);
-        if (isHost && current >= 2)
-            startButton.setEnabled(true);
-        else
-            startButton.setEnabled(false);
-        startButton.addActionListener(e -> client.sendMsg("start"));
-
-        appear();
-        listenForStart();
+        myIndex = index;
+        isHost = index == 0;
+        currentPlayers = current;
     }
 
-    private void listenForStart() {
-        String msg;
+    @Override
+    void setUIComponents() {
+        updateMsg(currentPlayers);
+        whoAmI.setText("我是:" + myName + "，第" + myIndex + "位玩家");
+        startButton.setEnabled(isHost && currentPlayers >= 2);
+        startButton.addActionListener(e -> interact.sendMsg("start"));
+    }
+
+    @Override
+    public JPanel getPanel() {
+        return panel;
+    }
+
+    @Override
+    void listenToServer() {
         while (true) {
-            msg = interact.recvMsg();
-            if ("start".equals(msg))
+            String[] msg = interact.recvMsg().split(",");
+            if ("start".equals(msg[0]))
                 break;
-            if ("quit".equals(msg)) {
+            if ("stop".equals(msg[0])) {
                 disappear();
                 interact.die(1);
             }
-            try {
-                updateMsg(Integer.parseInt(msg));
-            } catch (Exception e) {
-                e.printStackTrace();
-                System.out.println("Something wrong with msg from server:");
-                System.out.println(msg);
-            }
+            updateMsg(Integer.parseInt(msg[1]));
         }
-        nextStage();
     }
 
-    private synchronized void updateMsg(int current) {
-        people.setText("房间人数:" + current);
-        if (isHost && current >= 2)
-            startButton.setEnabled(true);
-        else
-            startButton.setEnabled(false);
-    }
-
+    @Override
     void nextStage() {
         disappear();
-        System.out.println("Entering playground");
+        System.out.println("Entering play room...");
         PlayRoom playroom = new PlayRoom(interact, myName);
+        playroom.showAndReact();
     }
 
-    public static void main(String[] args) {
-        Client c = new Client();
-        WaitingRoom room = new WaitingRoom(c, "test", 0, 4);
+    private void updateMsg(int current) {
+        people.setText("房间人数:" + current);
+        startButton.setEnabled(isHost && current >= 2);
     }
 }

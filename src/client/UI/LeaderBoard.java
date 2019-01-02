@@ -24,12 +24,14 @@ public class LeaderBoard extends UI {
         interact = client;
         names = new ArrayList<>();
         scores = new ArrayList<>();
+    }
 
+    @Override
+    void setUIComponents() {
         // Restart game.
         playAgainButton.addActionListener(e -> {
             disappear();
             interact.sendMsg("restart");
-            Login login = new Login(interact);
         });
 
         // Quit the game.
@@ -38,9 +40,16 @@ public class LeaderBoard extends UI {
             interact.die(0);
         });
 
+        // Show the scores in the label.
         getScores();
         renderScores();
-        appear();
+    }
+
+    @Override
+    void listenToServer() {
+        while (true)
+            if ("restart".equals(interact.recvMsg()))
+                break;
     }
 
     private void getScores() {
@@ -48,13 +57,7 @@ public class LeaderBoard extends UI {
         for (String s : res) {
             String[] pair = s.split(":");
             names.add(pair[0]);
-            try {
-                scores.add(Integer.parseInt(pair[1]));
-            } catch (NumberFormatException e) {
-                System.out.println("Exception occurs: invalid number format.");
-            } catch (IndexOutOfBoundsException e) {
-                System.out.println("Exception occurs: ':' is supposed to be the separator of name and score.");
-            }
+            scores.add(Integer.parseInt(pair[1]));
         }
     }
 
@@ -83,6 +86,9 @@ public class LeaderBoard extends UI {
 
     @Override
     void nextStage() {
-
+        disappear();
+        System.out.println("Playing again...entering play room...");
+        PlayRoom playRoom = new PlayRoom(interact, myName);
+        playRoom.showAndReact();
     }
 }

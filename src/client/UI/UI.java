@@ -12,13 +12,34 @@ abstract class UI {
     private JFrame ui;
     Interact interact;
 
+    // Abstract methods:
+    // Set up the UI components'bounds and their event listeners.
+    abstract void setUIComponents();
+
+    // Get the panel and set the main panel in a frame.
     abstract JPanel getPanel();
 
+    // Listen to the server's messages, and react accordingly.
+    // Deal with messages with a hash map of parsers.
+    abstract void listenToServer();
+
+    // Go to next stage.
     abstract void nextStage();
 
-    void appear() {
+
+    // Actual methods.
+    // Show the frame and respond to server & user.
+    public void showAndReact() {
+        setUIComponents();// Flexible
+        appear();
+        listenToServer();// Flexible
+        nextStage();// Flexible
+    }
+
+    // Show the frame.
+    private void appear() {
         ui = new JFrame("你画我猜");
-        // Quit game.
+        // set the options of quitting game.
         ui.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         ui.addWindowListener(new WindowAdapter() {
             @Override
@@ -40,6 +61,7 @@ abstract class UI {
         ui.setVisible(true);
     }
 
+    // Dispose the frame.
     void disappear() {
         ui.dispose();
     }

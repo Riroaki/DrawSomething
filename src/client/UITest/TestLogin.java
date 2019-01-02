@@ -1,13 +1,12 @@
 package client.UITest;
 
 import client.Interact;
-import client.UI.LeaderBoard;
+import client.UI.Login;
 
-public class TestLeaderBoard implements Interact {
+public class TestLogin implements Interact {
 
     @Override
     public void die(int status) {
-        System.out.println("Client died");
         System.exit(status);
     }
 
@@ -18,12 +17,12 @@ public class TestLeaderBoard implements Interact {
 
     @Override
     public String recvMsg() {
-        return "jojo:0;dio:0;test:10;llq:15";
+        return "0,1";
     }
 
     public static void main(String[] args) {
-        TestLeaderBoard test = new TestLeaderBoard();
-        LeaderBoard leaderBoard = new LeaderBoard("llq", test);
-        leaderBoard.showAndReact();
+        TestLogin test = new TestLogin();
+        Login login = new Login(test);
+        login.showAndReact();
     }
 }
