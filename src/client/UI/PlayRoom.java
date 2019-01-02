@@ -343,15 +343,17 @@ public class PlayRoom extends UI {
         scoreText.setText(scoreTextContent.toString());
     }
 
+    @Override
     JPanel getPanel() {
         return panel;
     }
 
     // TODO: Go to the ranks page.
+    @Override
     void nextStage() {
         disappear();
         System.out.println("Going to leader board.");
-
+        LeaderBoard leaderBoard = new LeaderBoard(myName, interact);
     }
 
     // Class for paint board.

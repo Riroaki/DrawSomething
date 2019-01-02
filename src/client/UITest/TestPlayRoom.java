@@ -28,6 +28,8 @@ public class TestPlayRoom implements Interact {
 
         messages.add("time,all");
         messages.add("quit,test");
+
+        messages.add("stop,all");
     }
 
     @Override
@@ -70,6 +72,5 @@ public class TestPlayRoom implements Interact {
     public static void main(String[] args) {
         TestPlayRoom test = new TestPlayRoom();
         PlayRoom playRoom = new PlayRoom(test, "llq");
-//        Playground playground = new Playground(test, "llq");
     }
 }

@@ -51,6 +51,7 @@ public class Client implements Interact {
         Login login = new Login(this);
     }
 
+    @Override
     public void sendMsg(String msg) {
         try {
             output.writeUTF(msg);
@@ -60,6 +61,7 @@ public class Client implements Interact {
         }
     }
 
+    @Override
     public String recvMsg() {
         String msg = "";
         try {
@@ -71,6 +73,7 @@ public class Client implements Interact {
     }
 
     // Client dies.
+    @Override
     public void die(int status) {
         try {
             output.writeUTF("close");

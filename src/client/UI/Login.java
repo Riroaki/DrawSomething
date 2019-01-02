@@ -13,6 +13,7 @@ public class Login extends UI {
     private JButton loginButton;
     private JLabel infoLabel;
 
+    @Override
     JPanel getPanel() {
         return panel;
     }
