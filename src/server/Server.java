@@ -32,7 +32,7 @@ public class Server {
             topicGenerator = new TopicGenerator();
             serverSocket = new ServerSocket(PORT);
         } catch (Exception e) {
-            System.out.println("Fail to initialize the server due to some exception(s).");
+            e.printStackTrace();
             return 1;
         }
         return 0;
@@ -193,10 +193,13 @@ public class Server {
             // If the player state is already -1 before starting, then IO is broken.
             if (getPlayerState() == 0)
                 beforePlaying();
+            // Play session.
             if (getPlayerState() == 2)
                 play();
+            // Result session.
             if (getPlayerState() == 3)
                 showResults();
+            // Exit session.
             setPlayerState(-1);
             die();
         }
