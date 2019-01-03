@@ -20,7 +20,7 @@ public class TopicGenerator {
         Connection conn = null;
         Statement stmt = null;
 
-        Boolean except = false;
+        boolean except = false;
         try {
             // Register JDBC driver
             Class.forName(JDBC_DRIVER);
@@ -74,7 +74,7 @@ public class TopicGenerator {
         }
     }
 
-    Topic GiveATopic() {
+    public Topic GiveATopic() {
         // Randomly choose a topic.
         Random r = new Random();
         return topicList.get(r.nextInt(topicList.size()));

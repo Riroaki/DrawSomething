@@ -53,7 +53,7 @@ public class LeaderBoard extends UI {
     }
 
     private void getScores() {
-        String[] res = interact.recvMsg().split(";");
+        String[] res = interact.recvMsg().split(",");
         for (String s : res) {
             String[] pair = s.split(":");
             names.add(pair[0]);
@@ -63,8 +63,11 @@ public class LeaderBoard extends UI {
 
     private void renderScores() {
         StringBuilder sb = new StringBuilder("<html>");
+        int rank = 0;
         for (int i = 0; i < scores.size(); i++) {
             StringBuilder tmp = new StringBuilder();
+            tmp.append(rank);
+            tmp.append(".");
             tmp.append(names.get(i));
             tmp.append(":\t");
             tmp.append(scores.get(i));

@@ -43,7 +43,7 @@ public class Login extends UI {
         });
 
         // Go to waiting room when login button is clicked.
-        loginButton.addActionListener(e -> nextStage());
+        loginButton.addActionListener(e -> interact.sendMsg("name," + userText.getText()));
     }
 
     @Override
@@ -53,27 +53,28 @@ public class Login extends UI {
 
     @Override
     void listenToServer() {
-        while (true)
-            if ("stop".equals(interact.recvMsg()))
+        while (true) {
+            String raw = interact.recvMsg();
+            String[] msg = raw.split(",");
+            if ("stop".equals(msg[0])) {
+                disappear();
+                interact.die(1);
                 break;
+            } else if ("enter".equals(msg[0])) {
+                myIndex = Integer.parseInt(msg[1]);
+                currentPlayers = Integer.parseInt(msg[2]);
+                break;
+            }
+        }
     }
 
+    private int myIndex, currentPlayers;
+
     void nextStage() {
-        String name = userText.getText(), msg = "";
-        interact.sendMsg(name);
-        try {
-            msg = interact.recvMsg();
-            String[] indexStrings = msg.split(",");
-            System.out.println("Entering waiting room");
-            WaitingRoom room = new WaitingRoom(interact, name,
-                    Integer.parseInt(indexStrings[0]),
-                    Integer.parseInt(indexStrings[1]));
-            room.showAndReact();
-        } catch (Exception e) {
-            e.printStackTrace();
-            System.out.println("Something wrong with the msg from server:");
-            System.out.println(msg);
-        }
-        disappear();
+        disappear();// Should vanish before entering a new room, as the showAndReact function won't end.
+        System.out.println("Entering waiting room");
+        WaitingRoom room = new WaitingRoom(interact, userText.getText(),
+                myIndex, currentPlayers);
+        room.showAndReact();
     }
 }

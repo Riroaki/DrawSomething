@@ -1,6 +1,6 @@
 package server.topic;
 
-class Topic {
+public class Topic {
     private String name, type;
     private int length;
 

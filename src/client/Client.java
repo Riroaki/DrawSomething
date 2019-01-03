@@ -76,19 +76,13 @@ public class Client implements Interact {
     // Client dies.
     @Override
     public void die(int status) {
-        try {
-            output.writeUTF("close");
-        } catch (IOException e) {
-            e.printStackTrace();
-            System.out.println("Fail to tell the server my death.");
-        }
+        sendMsg("quit");
         try {
             input.close();
             output.close();
             socket.close();
         } catch (IOException e) {
             e.printStackTrace();
-            System.out.println("Fail to release sources.");
         }
         System.out.println("Client died.");
         System.exit(status);

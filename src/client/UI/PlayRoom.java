@@ -13,7 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 
 interface MsgParser {
-    void parser(String[] msg);
+    void parse(String[] msg);
 }
 
 class MyPoint extends Point {
@@ -174,7 +174,7 @@ public class PlayRoom extends UI {
 
     @Override
     void listenToServer() {
-        // Put the parser function of each command into an hash map.
+        // Put the parse function of each command into an hash map.
         // This is designed to avoid if-else and switches.
         HashMap<String, MsgParser> parserDict = new HashMap<>();
         parserDict.put("name", new NameParser());
@@ -187,6 +187,9 @@ public class PlayRoom extends UI {
         parserDict.put("clear", new ClearParser());
         parserDict.put("time", new TimeParser());
 
+        // Tell the server that I am prepared to start the game.
+        interact.sendMsg("ok");
+
         // Receive messages and parse them.
         while (true) {
             String raw = interact.recvMsg();
@@ -195,7 +198,7 @@ public class PlayRoom extends UI {
                 if ("stop".equals(msg[0]))
                     break;
                 if (parserDict.containsKey(msg[0]))
-                    parserDict.get(msg[0]).parser(msg);
+                    parserDict.get(msg[0]).parse(msg);
             } catch (IndexOutOfBoundsException e) {
                 e.printStackTrace();
                 System.out.println("Something wrong with server's message");
@@ -250,7 +253,7 @@ public class PlayRoom extends UI {
     private void startNewRound() {
         // Set the game round.
         round++;
-        roundLabel.setText("第" + round + "轮");
+        roundLabel.setText("第" + round + "/5轮");
 
         // Clear the board and the message box.
         paintBoard.clear();
@@ -272,7 +275,7 @@ public class PlayRoom extends UI {
         // Clear the messages.
         if ("".equals(entry)) {
             if (msgList.isEmpty()) {
-                msgList.add("--游戏即将开始--\n\n");
+                msgList.add("--游戏开始--\n\n");
             } else {
                 msgList.remove(0);
                 msgList.add("--以上为上一轮消息--\n\n");
@@ -390,7 +393,7 @@ public class PlayRoom extends UI {
     // Class for parsing command "name".
     class NameParser implements MsgParser {
         @Override
-        public void parser(String[] msg) {
+        public void parse(String[] msg) {
             for (int i = 1; i < msg.length; i++) {
                 nameList.add(msg[i]);
                 scoreList.add(0);
@@ -403,9 +406,9 @@ public class PlayRoom extends UI {
     // Class for parsing command "draw".
     class DrawParser implements MsgParser {
         @Override
-        public void parser(String[] msg) {
+        public void parse(String[] msg) {
             sendButton.setEnabled(false);
-            hintLabel.setText("我画" + msg[2]);
+            hintLabel.setText("我画" + msg[1]);
             commentText.setEnabled(false);
             commentText.setText("轮到你画，不能发消息");
             paintBoard.setMouseDraw(true);
@@ -417,10 +420,14 @@ public class PlayRoom extends UI {
     // Class for parsing command "guess".
     class GuessParser implements MsgParser {
         @Override
-        public void parser(String[] msg) {
-            hintLabel.setText("我猜" + msg[2] + ";" + msg[3] + "个字");
+        public void parse(String[] msg) {
+            hintLabel.setText("我猜" + msg[1] + "，" + msg[2] + "个字");
             commentText.setEnabled(true);
+            colorSelector.setEnabled(false);
+            strokeSelector.setEnabled(false);
+            clearButton.setEnabled(false);
             commentText.setText("在这里输入你的猜测");
+            commentText.setEditable(true);
             paintBoard.setMouseDraw(false);
             shouldDraw = false;
             startNewRound();
@@ -430,7 +437,7 @@ public class PlayRoom extends UI {
     // Class for parsing command "quit".
     class QuitParser implements MsgParser {
         @Override
-        public void parser(String[] msg) {
+        public void parse(String[] msg) {
             updateMsg(msg[1] + "退出了房间");
             aliveList.set(nameList.indexOf(msg[1]), false);
             updateScore(0, 0);
@@ -439,27 +446,27 @@ public class PlayRoom extends UI {
 
     class RightParser implements MsgParser {
         @Override
-        public void parser(String[] msg) {
+        public void parse(String[] msg) {
             int plusScore = 3;
-            if (timeLeft < 30)
+            if (timeLeft <= 30)
                 plusScore = 1;
             updateMsg(msg[1] + "猜对了答案，加" + plusScore + "分");
             updateScore(nameList.indexOf(msg[1]), plusScore);
+            if(shouldDraw)
+                updateScore(nameList.indexOf(myName), plusScore);
         }
     }
 
     class WrongParser implements MsgParser {
-
         @Override
-        public void parser(String[] msg) {
+        public void parse(String[] msg) {
             updateMsg(msg[1] + ":" + msg[2]);
         }
     }
 
     class PaintParser implements MsgParser {
-
         @Override
-        public void parser(String[] msg) {
+        public void parse(String[] msg) {
             if (shouldDraw)
                 return;
             // Format of message: x, y, color, stroke.
@@ -472,9 +479,8 @@ public class PlayRoom extends UI {
     }
 
     class ClearParser implements MsgParser {
-
         @Override
-        public void parser(String[] msg) {
+        public void parse(String[] msg) {
             if (shouldDraw)
                 return;
             paintBoard.clear();
@@ -483,9 +489,8 @@ public class PlayRoom extends UI {
     }
 
     class TimeParser implements MsgParser {
-
         @Override
-        public void parser(String[] msg) {
+        public void parse(String[] msg) {
             if (timeLeft <= 30)
                 return;
             timeLeft = 30;

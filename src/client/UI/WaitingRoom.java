@@ -27,10 +27,11 @@ public class WaitingRoom extends UI {
 
     @Override
     void setUIComponents() {
-        updateMsg(currentPlayers);
         whoAmI.setText("我是:" + myName + "，第" + myIndex + "位玩家");
+        startButton.setText(isHost ? "等待更多人加入游戏" : "等待房主开始游戏");
         startButton.setEnabled(isHost && currentPlayers >= 2);
         startButton.addActionListener(e -> interact.sendMsg("start"));
+        updateMsg(0);
     }
 
     @Override
@@ -47,8 +48,10 @@ public class WaitingRoom extends UI {
             if ("stop".equals(msg[0])) {
                 disappear();
                 interact.die(1);
-            }
-            updateMsg(Integer.parseInt(msg[1]));
+            } else if ("add".equals(msg[0]))
+                updateMsg(1);
+            else if ("sub".equals(msg[0]))
+                updateMsg(-1);
         }
     }
 
@@ -60,8 +63,12 @@ public class WaitingRoom extends UI {
         playroom.showAndReact();
     }
 
-    private void updateMsg(int current) {
-        people.setText("房间人数:" + current);
-        startButton.setEnabled(isHost && current >= 2);
+    private void updateMsg(int diff) {
+        currentPlayers += diff;
+        people.setText("房间人数:" + currentPlayers);
+        if(isHost && currentPlayers >= 2) {
+            startButton.setEnabled(true);
+            startButton.setText("开始游戏");
+        }
     }
 }
