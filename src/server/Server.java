@@ -30,6 +30,7 @@ public class Server {
     private int init() {
         try {
             topicGenerator = new TopicGenerator();
+            topic = topicGenerator.GiveATopic();
             serverSocket = new ServerSocket(PORT);
         } catch (Exception e) {
             e.printStackTrace();
@@ -84,14 +85,8 @@ public class Server {
 
     private int getGameIndex(int index) {
         synchronized (orderList) {
-            if (orderList.contains(index)) {
-                // Move the element of index 0 to the tail,
-                // so the gameIndex will change, and therefore
-                // the role of this player will be changed.
-                int tmp = orderList.remove(0);
-                orderList.add(tmp);
+            if (orderList.contains(index))
                 return orderList.indexOf(index);
-            }
             orderList.add(index);
             scoreList.add(0);
             return orderList.size() - 1;
@@ -103,6 +98,17 @@ public class Server {
             orderList.remove(gameIndex);
             scoreList.remove(gameIndex);
         }
+    }
+
+    private boolean hasShifted;
+
+    private void shiftOrderList() {
+        // Move the element of index 0 to the tail,
+        // so the gameIndex will change, and therefore
+        // the role of this player will be changed.
+        // Shift only once in each round.
+        int tmp = orderList.remove(0);
+        orderList.add(tmp);
     }
 
     private final StringBuilder names = new StringBuilder("name");
@@ -121,6 +127,9 @@ public class Server {
     }
 
     private final StringBuilder result = new StringBuilder("Undefined");
+
+    // This variable will be set to true each round.
+    private boolean unsolved;
 
     private String getResult() {
         synchronized (orderList) {
@@ -142,9 +151,9 @@ public class Server {
                     // Set the result string.
                     int myIndex = orderList.get(i);
                     result.append(threadList.get(myIndex).myName);
-                    result.append(":");
+                    result.append(':');
                     result.append(scoreList.get(i));
-                    result.append(",");
+                    result.append(',');
                 }
                 result.deleteCharAt(result.length() - 1);
             }
@@ -244,7 +253,6 @@ public class Server {
                     setPlayerState(1);
                 } else if ("start".equals(msg[0])) {
                     sendAll("start", 1);
-                    updateTopic();
                 } else if ("ok".equals(msg[0])) {
                     setPlayerState(2);
                     gameIndex = getGameIndex(myIndex);
@@ -255,8 +263,6 @@ public class Server {
         }
 
         private boolean IAmRight;
-
-        private boolean unsolved;
 
         // Interactions while playing.
         private void play() {
@@ -269,15 +275,20 @@ public class Server {
             // Send the name list to the player.
             sendMsg(getNames());
 
+            // The name of drawer every round.
+            String drawerName = threadList.get(orderList.get(0)).myName;
+
             // The game includes 5 rounds.
             for (int i = 0; i < 5; i++) {
                 // Reset the result of each round.
                 IAmRight = false;
-                unsolved = true;
+                synchronized ((Boolean) hasShifted) {
+                    hasShifted = false;
+                }
                 if (gameIndex == 0)
                     sendMsg("draw," + topic.getName());
                 else
-                    sendMsg("guess," + topic.getType() + "," + topic.getLength());
+                    sendMsg("guess," + topic.getType() + "," + topic.getLength() + "," + drawerName);
                 while (true) {
                     String raw = recvMsg();
                     String[] msg = raw.split(",");
@@ -290,21 +301,36 @@ public class Server {
                         if (!IAmRight && topic.getName().equals(msg[1])) {
                             sendAll("right," + myName, 2);
                             // Add 3 points to the player if he is the first to solve the problem.
-                            if (unsolved) {
-                                sendAll("time", 2);
-                                scoreList.set(gameIndex, scoreList.get(gameIndex) + 3);
-                            } else
-                                // Add 1 points if he is not the first clever man.
-                                scoreList.set(gameIndex, scoreList.get(gameIndex) + 1);
+                            synchronized ((Boolean) unsolved) {
+                                if (unsolved) {
+                                    sendAll("time", 2);
+                                    scoreList.set(gameIndex, scoreList.get(gameIndex) + 3);
+                                    unsolved = false;
+                                } else
+                                    // Add 1 points if he is not the first clever man.
+                                    scoreList.set(gameIndex, scoreList.get(gameIndex) + 1);
+                            }
                             // The person who draws will gain 1 point too.
                             scoreList.set(0, scoreList.get(0) + 1);
                             // TODO: stop if everyone has figured out the puzzle.
                         } else
                             sendAll("wrong," + myName + "," + msg[1], 2);
-                    } else if ("paint".equals(msg[0]) || "clear".equals(msg[0])) {
+                    } else if ("paint".equals(msg[0]) || "clear".equals(msg[0]) || "cancel".equals(msg[0])) {
                         sendAll(raw, 2);
-                    } else if ("end".equals(msg[0]))
+                    } else if ("end".equals(msg[0])) {
+                        // Shift the order so that the role of each player will change.
+                        synchronized ((Boolean) hasShifted) {
+                            // These codes should be executed only once.
+                            if (!hasShifted) {
+                                hasShifted = true;
+                                unsolved = true;
+                                shiftOrderList();
+                                drawerName = threadList.get(orderList.get(0)).myName;
+                                updateTopic();
+                            }
+                        }
                         break;// Go to next round.
+                    }
                 }
                 if (getPlayerState() != 2)
                     break;

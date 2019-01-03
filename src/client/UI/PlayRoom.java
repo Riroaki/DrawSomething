@@ -51,6 +51,7 @@ public class PlayRoom extends UI {
     private JButton sendButton;
     private JComboBox<String> colorSelector;
     private JComboBox<String> strokeSelector;
+    private JButton cancelButton;
     private JButton clearButton;
     private JLabel timeLabel;
     private JLabel hintLabel;
@@ -90,12 +91,12 @@ public class PlayRoom extends UI {
         panel.add(paintBoard);
 
         colorSelector = new JComboBox<>();
-        colorSelector.setBounds(0, 700, 300, 30);
+        colorSelector.setBounds(0, 700, 200, 30);
         colorSelector.setEditable(false);
         panel.add(colorSelector);
 
         strokeSelector = new JComboBox<>();
-        strokeSelector.setBounds(300, 700, 300, 30);
+        strokeSelector.setBounds(200, 700, 200, 30);
         strokeSelector.setEditable(false);
         panel.add(strokeSelector);
 
@@ -108,18 +109,26 @@ public class PlayRoom extends UI {
         colorSelector.addActionListener(e -> paintBoard.setColor(colorSelector.getSelectedIndex()));
         strokeSelector.addActionListener(e -> paintBoard.setStroke(strokeSelector.getSelectedIndex()));
 
-        clearButton = new JButton();
-        clearButton.setBounds(600, 700, 200, 30);
-        clearButton.setText("清空画布");
-        panel.add(clearButton);
+        cancelButton = new JButton("撤销");
+        cancelButton.setBounds(400, 700, 200, 30);
+        cancelButton.addActionListener(e -> {
+            paintBoard.cancel();
+            interact.sendMsg("cancel");
+        });
+        panel.add(cancelButton);
 
+        clearButton = new JButton("清空画布");
+        clearButton.setBounds(600, 700, 200, 30);
         clearButton.addActionListener(e -> {
             paintBoard.clear();
+            updateMsg("清空了画布");
             interact.sendMsg("clear");
         });
+        panel.add(clearButton);
 
         timeLabel = new JLabel("91s");
         timeLabel.setBounds(810, 0, 50, 30);
+        setTimer();
         panel.add(timeLabel);
 
         hintLabel = new JLabel();
@@ -143,28 +152,23 @@ public class PlayRoom extends UI {
         commentText = new JTextField();
         commentText.setBounds(805, 700, 160, 30);
         commentText.setEditable(false);
-        panel.add(commentText);
-
         commentText.addKeyListener(new KeyAdapter() {
             @Override
             public void keyReleased(KeyEvent e) {
                 sendButton.setEnabled(commentText.getText().length() > 0);
             }
         });
+        panel.add(commentText);
 
-        sendButton = new JButton();
+        sendButton = new JButton("发送");
         sendButton.setBounds(960, 700, 60, 30);
-        sendButton.setText("发送");
-        panel.add(sendButton);
-
         sendButton.setEnabled(false);
         sendButton.addActionListener(e -> {
             // If the content includes ',', then the message after the ',' will be ignored when parsing it.
             interact.sendMsg("guess," + commentText.getText().replaceAll(",", "，"));
             commentText.setText("");
         });
-
-        setTimer();
+        panel.add(sendButton);
     }
 
     @Override
@@ -186,6 +190,7 @@ public class PlayRoom extends UI {
         parserDict.put("paint", new PaintParser());
         parserDict.put("clear", new ClearParser());
         parserDict.put("time", new TimeParser());
+        parserDict.put("cancel", new CancelParser());
 
         // Tell the server that I am prepared to start the game.
         interact.sendMsg("ok");
@@ -330,14 +335,17 @@ public class PlayRoom extends UI {
             MouseAdapter detector = new MouseAdapter() {
                 @Override
                 public void mousePressed(MouseEvent e) {
-                    if (mouseDraw)
+                    if (mouseDraw) {
                         addPoint(e.getX(), e.getY(), false);
+                        interact.sendMsg("paint," + e.getX() + "," + e.getY() + "," + colorIndex + "," + strokeType + ",0");
+                    }
                 }
 
                 @Override
                 public void mouseDragged(MouseEvent e) {
                     if (mouseDraw) {
                         addPoint(e.getX(), e.getY(), true);
+                        interact.sendMsg("paint," + e.getX() + "," + e.getY() + "," + colorIndex + "," + strokeType + ",1");
                     }
                 }
             };
@@ -375,9 +383,17 @@ public class PlayRoom extends UI {
             MyPoint point = new MyPoint(x, y, color, strokeType, continuous);
             pointList.add(point);
             this.repaint();
-            String isContinuous = continuous ? "1" : "0";
-            if (shouldDraw)
-                interact.sendMsg("paint," + x + "," + y + "," + colorIndex + "," + strokeType + "," + isContinuous);
+        }
+
+        // Cancel.
+        void cancel() {
+            int pointIndex = pointList.size() - 1;
+            while (true) {
+                MyPoint tmp = pointList.remove(pointIndex);
+                if (!tmp.getContinuous())
+                    break;
+            }
+            this.repaint();
         }
 
         void setColor(int index) {
@@ -458,9 +474,10 @@ public class PlayRoom extends UI {
                 plusScore = 3;
             }
             updateMsg(msg[1] + "猜对了答案，加" + plusScore + "分");
+            // Add to the person who guesses.
             updateScore(nameList.indexOf(msg[1]), plusScore);
-            if (shouldDraw)
-                updateScore(nameList.indexOf(myName), plusScore);
+            // Add to the person who draws.
+            updateScore(nameList.indexOf(msg[2]), 1);
         }
     }
 
@@ -502,6 +519,13 @@ public class PlayRoom extends UI {
                 return;
             timeLeft = 30;
             updateMsg("时间缩短为30秒");
+        }
+    }
+
+    class CancelParser implements MsgParser {
+        @Override
+        public void parse(String[] msg) {
+            paintBoard.cancel();
         }
     }
 }
