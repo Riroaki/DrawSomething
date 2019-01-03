@@ -372,7 +372,8 @@ public class PlayRoom extends UI {
             pointList.add(point);
             this.repaint();
             String isContinuous = continuous ? "1" : "0";
-            interact.sendMsg("paint," + x + "," + y + "," + colorIndex + "," + strokeType + "," + isContinuous);
+            if (shouldDraw)
+                interact.sendMsg("paint," + x + "," + y + "," + colorIndex + "," + strokeType + "," + isContinuous);
         }
 
         void setColor(int index) {
@@ -452,7 +453,7 @@ public class PlayRoom extends UI {
                 plusScore = 1;
             updateMsg(msg[1] + "猜对了答案，加" + plusScore + "分");
             updateScore(nameList.indexOf(msg[1]), plusScore);
-            if(shouldDraw)
+            if (shouldDraw)
                 updateScore(nameList.indexOf(myName), plusScore);
         }
     }
@@ -471,10 +472,10 @@ public class PlayRoom extends UI {
                 return;
             // Format of message: x, y, color, stroke.
             // MUST assign color and stroke before adding points.
-            paintBoard.setColor(Integer.parseInt(msg[4]));
-            paintBoard.setStroke(Integer.parseInt(msg[5]));
-            boolean continuous = Integer.parseInt(msg[6]) != 0;
-            paintBoard.addPoint(Integer.parseInt(msg[2]), Integer.parseInt(msg[3]), continuous);
+            paintBoard.setColor(Integer.parseInt(msg[3]));
+            paintBoard.setStroke(Integer.parseInt(msg[4]));
+            boolean continuous = Integer.parseInt(msg[5]) != 0;
+            paintBoard.addPoint(Integer.parseInt(msg[1]), Integer.parseInt(msg[2]), continuous);
         }
     }
 

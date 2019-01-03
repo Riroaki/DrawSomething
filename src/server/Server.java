@@ -82,7 +82,7 @@ public class Server {
                 return orderList.indexOf(index);
             orderList.add(index);
             scoreList.add(0);
-            return orderList.size();
+            return orderList.size() - 1;
         }
     }
 
