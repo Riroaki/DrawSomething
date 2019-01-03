@@ -30,8 +30,9 @@ public class LeaderBoard extends UI {
     void setUIComponents() {
         // Restart game.
         playAgainButton.addActionListener(e -> {
-            disappear();
-            interact.sendMsg("restart");
+//            disappear();
+//            interact.sendMsg("restart");
+            JOptionPane.showConfirmDialog(null, "抱歉，暂不支持重新开始游戏。请退出后重连。", "退出游戏", JOptionPane.YES_NO_OPTION);
         });
 
         // Quit the game.

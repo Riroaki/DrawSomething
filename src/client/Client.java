@@ -35,12 +35,11 @@ public class Client implements Interact {
             } catch (Exception e) {
                 if (reconnectTimes++ == MAX_TRIAL)
                     die(1);
-                System.out.println("Fail to connect server: " + e.getMessage());
+                System.out.println("Fail to connect server, retry in 2 sec... ");
                 try {
                     Thread.sleep(2000);
                 } catch (InterruptedException ie) {
-                    System.out.println("Abort due to another exception.");
-                    die(1);
+                    e.printStackTrace();
                 }
             }
         }
@@ -64,13 +63,12 @@ public class Client implements Interact {
 
     @Override
     public String recvMsg() {
-        String msg = "";
         try {
-            msg = input.readUTF();
+            return input.readUTF();
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return msg;
+        return "";
     }
 
     // Client dies.
