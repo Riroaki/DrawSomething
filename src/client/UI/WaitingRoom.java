@@ -27,7 +27,7 @@ public class WaitingRoom extends UI {
 
     @Override
     void setUIComponents() {
-        whoAmI.setText("我是:" + myName + "，第" + myIndex + "位玩家");
+        whoAmI.setText("我是:" + myName + "，第" + (myIndex + 1) + "位玩家");
         startButton.setText(isHost ? "等待更多人加入游戏" : "等待房主开始游戏");
         startButton.setEnabled(isHost && currentPlayers >= 2);
         startButton.addActionListener(e -> interact.sendMsg("start"));
@@ -66,7 +66,7 @@ public class WaitingRoom extends UI {
     private void updateMsg(int diff) {
         currentPlayers += diff;
         people.setText("房间人数:" + currentPlayers);
-        if(isHost && currentPlayers >= 2) {
+        if (isHost && currentPlayers >= 2) {
             startButton.setEnabled(true);
             startButton.setText("开始游戏");
         }
