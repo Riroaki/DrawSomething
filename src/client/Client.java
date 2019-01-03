@@ -55,8 +55,8 @@ public class Client implements Interact {
     public void sendMsg(String msg) {
         try {
             output.writeUTF(msg);
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+//            e.printStackTrace();
             die(1);
         }
     }
@@ -65,8 +65,9 @@ public class Client implements Interact {
     public String recvMsg() {
         try {
             return input.readUTF();
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+//            e.printStackTrace();
+            die(1);
         }
         return "";
     }

@@ -140,7 +140,7 @@ public class PlayRoom extends UI {
         msgText.setEditable(false);
         panel.add(msgText);
 
-        roundLabel = new JLabel("第0轮");
+        roundLabel = new JLabel("第0轮，" + myName);
         roundLabel.setBounds(810, 350, 200, 30);
         panel.add(roundLabel);
 
@@ -191,6 +191,7 @@ public class PlayRoom extends UI {
         parserDict.put("clear", new ClearParser());
         parserDict.put("time", new TimeParser());
         parserDict.put("cancel", new CancelParser());
+        parserDict.put("finish", new FinishParser());
 
         // Tell the server that I am prepared to start the game.
         interact.sendMsg("ok");
@@ -226,31 +227,33 @@ public class PlayRoom extends UI {
         // If every one has figured out the puzzle,
         // time left will be set to 0 to finish this round.
         timer = new Timer(1000, e -> {
-            timeLeft -= 1;
-            if (timeLeft < 0) {
-                updateMsg("本轮游戏结束");
-                interact.sendMsg("end");
-                timer.stop();
-                try {
-                    if (!gameOver) {
-                        updateMsg("下一轮游戏即将开始...");
-                        Thread.sleep(1000);
-                    } else {
-                        updateMsg("游戏结束");
-                        paintBoard.setMouseDraw(false);
-                        Thread.sleep(2000);
-                        // Go to next stage.
-                        timer.stop();
+            synchronized ((Integer) timeLeft) {
+                timeLeft -= 1;
+                if (timeLeft < 0) {
+                    updateMsg("本轮游戏结束");
+                    interact.sendMsg("end");
+                    timer.stop();
+                    try {
+                        if (!gameOver) {
+                            updateMsg("下一轮游戏即将开始...");
+                            Thread.sleep(1000);
+                        } else {
+                            updateMsg("游戏结束");
+                            paintBoard.setMouseDraw(false);
+                            Thread.sleep(2000);
+                            // Go to next stage.
+                            timer.stop();
+                        }
+                    } catch (InterruptedException ie) {
+                        ie.printStackTrace();
                     }
-                } catch (InterruptedException ie) {
-                    ie.printStackTrace();
+                    return;
                 }
-                return;
+                String time = timeLeft + "s";
+                if (timeLeft <= 10)
+                    time = "<html><font color='red'>" + time + "</font></html>";
+                timeLabel.setText(time);
             }
-            String time = timeLeft + "s";
-            if (timeLeft <= 10)
-                time = "<html><font color='red'>" + time + "</font></html>";
-            timeLabel.setText(time);
         });
     }
 
@@ -260,7 +263,7 @@ public class PlayRoom extends UI {
     private void startNewRound() {
         // Set the game round.
         round++;
-        roundLabel.setText("第" + round + "/5轮");
+        roundLabel.setText("第" + round + "/5轮，" + myName);
 
         // Clear the board and the message box.
         paintBoard.clear();
@@ -271,7 +274,9 @@ public class PlayRoom extends UI {
         // Initialize the content of score text.
         updateScore(0, 0);
 
-        timeLeft = 90;
+        synchronized ((Integer) timeLeft) {
+            timeLeft = 90;
+        }
         timeLabel.setText("90s");
         timer.restart();
 
@@ -388,7 +393,7 @@ public class PlayRoom extends UI {
         // Cancel.
         void cancel() {
             int pointIndex = pointList.size() - 1;
-            if (pointIndex == 0)
+            if (pointIndex == -1)
                 return;
             while (true) {
                 MyPoint tmp = pointList.remove(pointIndex--);
@@ -438,7 +443,7 @@ public class PlayRoom extends UI {
 
             // The message panel.
             sendButton.setEnabled(false);
-            hintLabel.setText("我画" + msg[1]);
+            hintLabel.setText("我画：" + msg[1]);
             commentText.setEnabled(false);
             commentText.setText("轮到你画，不能发消息");
 
@@ -459,7 +464,7 @@ public class PlayRoom extends UI {
             paintBoard.setMouseDraw(false);
 
             // The message panel.
-            hintLabel.setText("我猜" + msg[1] + "，" + msg[2] + "个字");
+            hintLabel.setText("我猜：" + msg[1] + "，" + msg[2] + "个字");
             commentText.setEnabled(true);
             commentText.setText("在这里输入你的猜测");
             commentText.setEditable(true);
@@ -529,9 +534,11 @@ public class PlayRoom extends UI {
     class TimeParser implements MsgParser {
         @Override
         public void parse(String[] msg) {
-            if (timeLeft <= 30)
-                return;
-            timeLeft = 30;
+            synchronized ((Integer) timeLeft) {
+                if (timeLeft <= 30)
+                    return;
+                timeLeft = 30;
+            }
             updateMsg("时间缩短为30秒");
         }
     }
@@ -542,6 +549,15 @@ public class PlayRoom extends UI {
             if (shouldDraw)
                 return;
             paintBoard.cancel();
+        }
+    }
+
+    class FinishParser implements MsgParser {
+        @Override
+        public void parse(String[] msg) {
+            synchronized ((Integer) timeLeft) {
+                timeLeft = 1;
+            }
         }
     }
 }

@@ -5,7 +5,6 @@ import server.topic.TopicGenerator;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -54,18 +53,21 @@ public class Server {
         }
     }
 
+    // Update the number of connects.
     private void changeConnect(int diff) {
         synchronized ((Integer) connect) {
             connect += diff;
         }
     }
 
+    // Get the number of connects.
     private int getConnect() {
         synchronized ((Integer) connect) {
             return connect;
         }
     }
 
+    // Send the message to all players.
     private synchronized void sendAll(String msg, int status) {
         for (ServerThread thread : threadList) {
             if (thread.getPlayerState() == status)
@@ -79,37 +81,33 @@ public class Server {
         topic = topicGenerator.GiveATopic();
     }
 
-    private final List<Integer> orderList = new ArrayList<>();
+    // The game index and score of every player.
+    private final List<Integer> gameIndexList = new ArrayList<>();
     private final List<Integer> scoreList = new ArrayList<>();
+    private final List<Boolean> hasFiguredOut = new ArrayList<>();
 
+    // Get the game index for a server thread.
     private int getGameIndex(int index) {
-        synchronized (orderList) {
-            if (orderList.contains(index))
-                return orderList.indexOf(index);
-            orderList.add(index);
-            scoreList.add(0);
-            return orderList.size() - 1;
-        }
+        int res = gameIndexList.indexOf(index);
+        if (res != -1)
+            return res;
+        gameIndexList.add(index);
+        scoreList.add(0);
+        hasFiguredOut.add(false);
+        return gameIndexList.size() - 1;
     }
 
+    // Remove the server thread from game.
     private void removeFromGame(int gameIndex) {
-        synchronized (orderList) {
-            orderList.remove(gameIndex);
-            scoreList.remove(gameIndex);
-        }
+        gameIndexList.remove(gameIndex);
+        scoreList.remove(gameIndex);
+        hasFiguredOut.remove(gameIndex);
     }
 
-    private boolean hasShifted;
+    // The round count of server.
+    private int roundOfServer = 0;
 
-    private void shiftOrderList() {
-        // Move the element of index 0 to the tail,
-        // so the gameIndex will change, and therefore
-        // the role of this player will be changed.
-        // Shift only once in each round.
-        int tmp = orderList.remove(0);
-        orderList.add(tmp);
-    }
-
+    // The name list string.
     private final StringBuilder names = new StringBuilder("name");
 
     private void appendName(String name) {
@@ -125,30 +123,31 @@ public class Server {
         }
     }
 
-    private final StringBuilder result = new StringBuilder("Undefined");
-
     // This variable will be set to true each round.
-    private boolean unsolved;
+    private boolean unsolved = true;
+
+    // The result string.
+    private final StringBuffer result = new StringBuffer("Undefined");
 
     private String getResult() {
-        synchronized (orderList) {
+        synchronized (result) {
             if ("Undefined".equals(result.toString())) {
-                result.delete(0, 8);
-                for (int i = 0; i < orderList.size(); i++) {
+                result.delete(0, 9);
+                for (int i = 0; i < gameIndexList.size(); i++) {
                     int max = i;
-                    for (int j = i + 1; j < orderList.size(); j++) {
+                    for (int j = i + 1; j < gameIndexList.size(); j++) {
                         if (scoreList.get(j) > scoreList.get(max))
                             max = j;
                     }
                     int tmp = scoreList.get(i);
                     scoreList.set(i, scoreList.get(max));
                     scoreList.set(max, tmp);
-                    tmp = orderList.get(i);
-                    orderList.set(i, orderList.get(max));
-                    orderList.set(max, tmp);
+                    tmp = gameIndexList.get(i);
+                    gameIndexList.set(i, gameIndexList.get(max));
+                    gameIndexList.set(max, tmp);
 
                     // Set the result string.
-                    int myIndex = orderList.get(i);
+                    int myIndex = gameIndexList.get(i);
                     result.append(threadList.get(myIndex).myName);
                     result.append(':');
                     result.append(scoreList.get(i));
@@ -179,54 +178,21 @@ public class Server {
                 // Read data from client.
                 input = new DataInputStream(socket.getInputStream());
                 output = new DataOutputStream(socket.getOutputStream());
-            } catch (IOException e) {
-                e.printStackTrace();
-                changeConnect(-1);
-            }
-        }
-
-        int getPlayerState() {
-            synchronized ((Integer) playerState) {
-                return playerState;
-            }
-        }
-
-        void setPlayerState(int state) {
-            synchronized ((Integer) playerState) {
-                playerState = state;
-            }
-        }
-
-        void sendMsg(String msg) {
-            try {
-                output.writeUTF(msg);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        String recvMsg() {
-            String res = "";
-            try {
-                res = input.readUTF();
             } catch (Exception e) {
                 e.printStackTrace();
                 die();
             }
-            return res;
         }
 
         // Run the thread.
         public void run() {
+            roundOfServer = 0;
             // If the player state is already -1 before starting, then IO is broken.
-            if (getPlayerState() == 0)
-                beforePlaying();
+            beforePlaying();
             // Play session.
-            if (getPlayerState() == 2)
-                play();
+            play();
             // Result session.
-            if (getPlayerState() == 3)
-                showResults();
+            showResults();
             // Exit session.
             setPlayerState(-1);
             die();
@@ -236,6 +202,9 @@ public class Server {
 
         // Interactions before entering play room.
         private void beforePlaying() {
+            // Exit if status equals -1.
+            if (getPlayerState() != 0)
+                return;
             myIndex = threadList.indexOf(this);
 
             while (true) {
@@ -256,6 +225,7 @@ public class Server {
                     sendAll("start", 1);
                 } else if ("ok".equals(msg[0])) {
                     setPlayerState(2);
+                    // Get my game index for the first round.
                     gameIndex = getGameIndex(myIndex);
                     appendName(myName);
                     break;
@@ -267,38 +237,47 @@ public class Server {
 
         // Interactions while playing.
         private void play() {
+            // Exit if status equals -1.
+            if (getPlayerState() != 2)
+                return;
             // Sleep for a while and wait till everyone is added to the names.
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
                 e.printStackTrace();
+                die();
+                return;
             }
             // Send the name list to the player.
             sendMsg(getNames());
-
-            // The name of drawer every round.
-            String drawerName = threadList.get(orderList.get(0)).myName;
+            try {
+                hasFiguredOut.set(0, true);
+            } catch (Exception e) {
+                die();
+                return;
+            }
 
             // The game includes 5 rounds.
-            for (int i = 0; i < 5; i++) {
+            for (int round = 1; round <= 5; round++) {
                 // Reset the result of each round.
                 IAmRight = false;
-                synchronized ((Boolean) hasShifted) {
-                    hasShifted = false;
-                }
+                String drawerName = threadList.get(gameIndexList.get(0)).myName;
+
                 if (gameIndex == 0)
                     sendMsg("draw," + topic.getName());
                 else
                     sendMsg("guess," + topic.getType() + "," + topic.getLength() + "," + drawerName);
+
                 while (true) {
                     String raw = recvMsg();
                     String[] msg = raw.split(",");
+
                     if ("quit".equals(msg[0])) {
                         setPlayerState(-1);
                         sendAll("quit," + myName, 2);
                         removeFromGame(gameIndex);
-                        changeConnect(-1);
                         break;
+
                     } else if ("guess".equals(msg[0])) {
                         if (!IAmRight && topic.getName().equals(msg[1])) {
                             sendAll("right," + myName + "," + drawerName, 2);
@@ -312,61 +291,108 @@ public class Server {
                                 } else
                                     // Add 1 points if he is not the first clever man.
                                     scoreList.set(gameIndex, scoreList.get(gameIndex) + 1);
+                                hasFiguredOut.set(gameIndex, true);
+                                if (hasFiguredOut.indexOf(false) == -1)
+                                    sendAll("finish", 2);
                             }
                             // The person who draws will gain 1 point too.
                             scoreList.set(0, scoreList.get(0) + 1);
-                            // TODO: stop if everyone has figured out the puzzle.
                         } else
                             sendAll("wrong," + myName + "," + msg[1], 2);
+
                     } else if ("paint".equals(msg[0]) || "clear".equals(msg[0]) || "cancel".equals(msg[0])) {
                         sendAll(raw, 2);
+
                     } else if ("end".equals(msg[0])) {
-                        // Shift the order so that the role of each player will change.
-                        synchronized ((Boolean) hasShifted) {
-                            // These codes should be executed only once.
-                            if (!hasShifted) {
-                                hasShifted = true;
+                        // Prepare for a new round.
+                        synchronized ((Integer) roundOfServer) {
+                            if (roundOfServer != round) {
+                                roundOfServer++;
                                 unsolved = true;
-                                shiftOrderList();
-                                drawerName = threadList.get(orderList.get(0)).myName;
+                                // Shift the list.
+                                int tmp = gameIndexList.remove(0);
+                                gameIndexList.add(tmp);
+                                // Get the drawer name of new round.
                                 updateTopic();
+                                // Set everyone to be 'unknown' of the puzzle.
+                                for (int i = 1; i < hasFiguredOut.size(); i++)
+                                    hasFiguredOut.set(i, false);
+                                // The one who draws is always aware of the puzzle, so set it to be true.
+                                hasFiguredOut.set(0, true);
                             }
+                            gameIndex = getGameIndex(myIndex);
                         }
                         break;// Go to next round.
                     }
                 }
                 if (getPlayerState() != 2)
                     break;
-                gameIndex = getGameIndex(myIndex);
             }
-            sendMsg("stop");
-            setPlayerState(3);
+            if (getPlayerState() == 2) {
+                sendMsg("stop");
+                setPlayerState(3);
+            }
         }
 
         // Show the results.
         private void showResults() {
+            // Exit if state equals -1.
+            if (getPlayerState() != 3)
+                return;
+            System.out.println(getResult());
             sendMsg(getResult());
             // TODO: @function restart.
             while (true)
                 if ("quit".equals(recvMsg()))
                     break;
-            changeConnect(-1);
-            die();
+        }
+
+        int getPlayerState() {
+            synchronized ((Integer) playerState) {
+                return playerState;
+            }
+        }
+
+        void setPlayerState(int state) {
+            synchronized ((Integer) playerState) {
+                playerState = state;
+            }
+        }
+
+        void sendMsg(String msg) {
+            try {
+                output.writeUTF(msg);
+            } catch (Exception e) {
+//                e.printStackTrace();
+                die();
+            }
+        }
+
+        String recvMsg() {
+            String res = "";
+            try {
+                res = input.readUTF();
+            } catch (Exception e) {
+//                e.printStackTrace();
+                die();
+            }
+            return res;
         }
 
         // Close the connection if the client quits.
         private void die() {
+            threadList.remove(this);
             // Update all players in the waiting room and playing room.
             sendAll("sub", 1);
             sendAll("quit," + myName, 2);
+            changeConnect(-1);
             try {
                 input.close();
                 output.close();
-            } catch (IOException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
             System.out.println("Client dies.");
-            System.exit(0);
         }
     }
 }

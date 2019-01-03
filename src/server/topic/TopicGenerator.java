@@ -10,7 +10,7 @@ public class TopicGenerator {
 
     public TopicGenerator() throws Exception {
         // JDBC driver & database URL
-        final String JDBC_DRIVER = "com.mysql.jdbc.Driver";
+        final String JDBC_DRIVER = "com.mysql.cj.jdbc.Driver";
         final String DB_URL = "jdbc:mysql://localhost:3306/Draw";
 
         // User name and password.
