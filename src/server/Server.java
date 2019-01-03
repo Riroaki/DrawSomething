@@ -73,13 +73,25 @@ public class Server {
         }
     }
 
+    private Topic topic;
+
+    private void updateTopic() {
+        topic = topicGenerator.GiveATopic();
+    }
+
     private final List<Integer> orderList = new ArrayList<>();
     private final List<Integer> scoreList = new ArrayList<>();
 
     private int getGameIndex(int index) {
         synchronized (orderList) {
-            if (orderList.contains(index))
+            if (orderList.contains(index)) {
+                // Move the element of index 0 to the tail,
+                // so the gameIndex will change, and therefore
+                // the role of this player will be changed.
+                int tmp = orderList.remove(0);
+                orderList.add(tmp);
                 return orderList.indexOf(index);
+            }
             orderList.add(index);
             scoreList.add(0);
             return orderList.size() - 1;
@@ -93,7 +105,22 @@ public class Server {
         }
     }
 
-    private StringBuilder result;
+    private final StringBuilder names = new StringBuilder("name");
+
+    private void appendName(String name) {
+        synchronized (names) {
+            names.append(',');
+            names.append(name);
+        }
+    }
+
+    private String getNames() {
+        synchronized (names) {
+            return names.toString();
+        }
+    }
+
+    private final StringBuilder result = new StringBuilder("Undefined");
 
     private String getResult() {
         synchronized (orderList) {
@@ -123,12 +150,6 @@ public class Server {
             }
             return result.toString();
         }
-    }
-
-    private Topic topic;
-
-    private void updateTopic() {
-        topic = topicGenerator.GiveATopic();
     }
 
     // The server thread for clients.
@@ -214,8 +235,7 @@ public class Server {
                 if ("quit".equals(msg[0])) {
                     setPlayerState(-1);
                     break;
-                }
-                if ("name".equals(msg[0])) {
+                } else if ("name".equals(msg[0])) {
                     myName = msg[1];
                     sendMsg("enter," + myIndex + "," + getConnect());
                     sendAll("add", 1);
@@ -228,6 +248,7 @@ public class Server {
                 } else if ("ok".equals(msg[0])) {
                     setPlayerState(2);
                     gameIndex = getGameIndex(myIndex);
+                    appendName(myName);
                     break;
                 }
             }
@@ -239,11 +260,20 @@ public class Server {
 
         // Interactions while playing.
         private void play() {
-            IAmRight = false;
-            unsolved = true;
-            result = new StringBuilder("Undefined");
+            // Sleep for a while and wait till everyone is added to the names.
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            // Send the name list to the player.
+            sendMsg(getNames());
+
             // The game includes 5 rounds.
             for (int i = 0; i < 5; i++) {
+                // Reset the result of each round.
+                IAmRight = false;
+                unsolved = true;
                 if (gameIndex == 0)
                     sendMsg("draw," + topic.getName());
                 else
@@ -259,10 +289,12 @@ public class Server {
                     } else if ("guess".equals(msg[0])) {
                         if (!IAmRight && topic.getName().equals(msg[1])) {
                             sendAll("right," + myName, 2);
+                            // Add 3 points to the player if he is the first to solve the problem.
                             if (unsolved) {
                                 sendAll("time", 2);
                                 scoreList.set(gameIndex, scoreList.get(gameIndex) + 3);
                             } else
+                                // Add 1 points if he is not the first clever man.
                                 scoreList.set(gameIndex, scoreList.get(gameIndex) + 1);
                             // The person who draws will gain 1 point too.
                             scoreList.set(0, scoreList.get(0) + 1);
@@ -271,23 +303,23 @@ public class Server {
                             sendAll("wrong," + myName + "," + msg[1], 2);
                     } else if ("paint".equals(msg[0]) || "clear".equals(msg[0])) {
                         sendAll(raw, 2);
-                    } else if ("end".equals(msg[0])) {
-                        sendMsg("stop");
-                        setPlayerState(3);
-                        break;
-                    }
+                    } else if ("end".equals(msg[0]))
+                        break;// Go to next round.
                 }
-                if (getPlayerState() == -1)
+                if (getPlayerState() != 2)
                     break;
                 gameIndex = getGameIndex(myIndex);
             }
+            sendMsg("stop");
+            setPlayerState(3);
         }
 
         // Show the results.
         private void showResults() {
             sendMsg(getResult());
+            // TODO: @function restart.
             while (true)
-                if ("restart".equals(recvMsg()))
+                if ("quit".equals(recvMsg()))
                     break;
             die();
         }

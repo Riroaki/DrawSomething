@@ -249,6 +249,8 @@ public class PlayRoom extends UI {
         });
     }
 
+    private boolean unsolved;
+
     // Start a new round of game.
     private void startNewRound() {
         // Set the game round.
@@ -267,6 +269,8 @@ public class PlayRoom extends UI {
         timeLeft = 90;
         timeLabel.setText("90s");
         timer.restart();
+
+        unsolved = true;
     }
 
     // Repaint the message.
@@ -448,9 +452,11 @@ public class PlayRoom extends UI {
     class RightParser implements MsgParser {
         @Override
         public void parse(String[] msg) {
-            int plusScore = 3;
-            if (timeLeft <= 30)
-                plusScore = 1;
+            int plusScore = 1;
+            if (unsolved) {
+                unsolved = false;
+                plusScore = 3;
+            }
             updateMsg(msg[1] + "猜对了答案，加" + plusScore + "分");
             updateScore(nameList.indexOf(msg[1]), plusScore);
             if (shouldDraw)

@@ -30,15 +30,17 @@ public class LeaderBoard extends UI {
     void setUIComponents() {
         // Restart game.
         playAgainButton.addActionListener(e -> {
-//            disappear();
-//            interact.sendMsg("restart");
             JOptionPane.showConfirmDialog(null, "抱歉，暂不支持重新开始游戏。请退出后重连。", "退出游戏", JOptionPane.YES_NO_OPTION);
         });
 
         // Quit the game.
         quitButton.addActionListener(e -> {
-            disappear();
-            interact.die(0);
+            int i = JOptionPane.showConfirmDialog(null, "确定要退出游戏吗？", "退出游戏", JOptionPane.YES_NO_OPTION);
+            if(i == JOptionPane.YES_OPTION) {
+                disappear();
+                interact.sendMsg("quit");
+                interact.die(0);
+            }
         });
 
         // Show the scores in the label.
