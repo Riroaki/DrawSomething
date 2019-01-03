@@ -100,8 +100,8 @@ public class PlayRoom extends UI {
         strokeSelector.setEditable(false);
         panel.add(strokeSelector);
 
-        String[] colors = {"black", "white", "red", "yellow", "blue", "green", "pink"};
-        String[] strokes = {"light", "medium", "heavy"};
+        String[] colors = {"黑", "白", "红", "黄", "蓝", "绿", "粉"};
+        String[] strokes = {"较细", "中等粗细", "较粗"};
         for (String s : colors)
             colorSelector.addItem(s);
         for (String s : strokes)
@@ -388,8 +388,10 @@ public class PlayRoom extends UI {
         // Cancel.
         void cancel() {
             int pointIndex = pointList.size() - 1;
+            if (pointIndex == 0)
+                return;
             while (true) {
-                MyPoint tmp = pointList.remove(pointIndex);
+                MyPoint tmp = pointList.remove(pointIndex--);
                 if (!tmp.getContinuous())
                     break;
             }
@@ -428,11 +430,18 @@ public class PlayRoom extends UI {
     class DrawParser implements MsgParser {
         @Override
         public void parse(String[] msg) {
+            // The drawing panel.
+            cancelButton.setEnabled(true);
+            colorSelector.setEnabled(true);
+            strokeSelector.setEnabled(true);
+            paintBoard.setMouseDraw(true);
+
+            // The message panel.
             sendButton.setEnabled(false);
             hintLabel.setText("我画" + msg[1]);
             commentText.setEnabled(false);
             commentText.setText("轮到你画，不能发消息");
-            paintBoard.setMouseDraw(true);
+
             shouldDraw = true;
             startNewRound();
         }
@@ -442,14 +451,19 @@ public class PlayRoom extends UI {
     class GuessParser implements MsgParser {
         @Override
         public void parse(String[] msg) {
-            hintLabel.setText("我猜" + msg[1] + "，" + msg[2] + "个字");
-            commentText.setEnabled(true);
+            // The drawing panel.
+            cancelButton.setEnabled(false);
             colorSelector.setEnabled(false);
             strokeSelector.setEnabled(false);
             clearButton.setEnabled(false);
+            paintBoard.setMouseDraw(false);
+
+            // The message panel.
+            hintLabel.setText("我猜" + msg[1] + "，" + msg[2] + "个字");
+            commentText.setEnabled(true);
             commentText.setText("在这里输入你的猜测");
             commentText.setEditable(true);
-            paintBoard.setMouseDraw(false);
+
             shouldDraw = false;
             startNewRound();
         }
@@ -525,6 +539,8 @@ public class PlayRoom extends UI {
     class CancelParser implements MsgParser {
         @Override
         public void parse(String[] msg) {
+            if (shouldDraw)
+                return;
             paintBoard.cancel();
         }
     }

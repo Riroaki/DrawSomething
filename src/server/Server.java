@@ -45,10 +45,9 @@ public class Server {
             // Waiting for players to enter the room.
             while (getConnect() < MAX_CONNECT) {
                 Socket client = serverSocket.accept();
-                ServerThread st = new ServerThread(client, getConnect());
+                ServerThread st = new ServerThread(client);
                 st.start();
                 threadList.add(st);
-                changeConnect(1);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -171,9 +170,8 @@ public class Server {
         private int myIndex;
 
         // Initialize the server thread.
-        ServerThread(Socket client, int index) {
+        ServerThread(Socket client) {
             socket = client;
-            myIndex = index;
 
             // Entering room.
             setPlayerState(0);
@@ -238,6 +236,8 @@ public class Server {
 
         // Interactions before entering play room.
         private void beforePlaying() {
+            myIndex = threadList.indexOf(this);
+
             while (true) {
                 String raw = recvMsg();
                 String[] msg = raw.split(",");
@@ -246,6 +246,7 @@ public class Server {
                     break;
                 } else if ("name".equals(msg[0])) {
                     myName = msg[1];
+                    changeConnect(1);
                     sendMsg("enter," + myIndex + "," + getConnect());
                     sendAll("add", 1);
                     // This should be done after the message is sent,
@@ -296,10 +297,12 @@ public class Server {
                         setPlayerState(-1);
                         sendAll("quit," + myName, 2);
                         removeFromGame(gameIndex);
+                        changeConnect(-1);
                         break;
                     } else if ("guess".equals(msg[0])) {
                         if (!IAmRight && topic.getName().equals(msg[1])) {
-                            sendAll("right," + myName, 2);
+                            sendAll("right," + myName + "," + drawerName, 2);
+                            IAmRight = true;
                             // Add 3 points to the player if he is the first to solve the problem.
                             synchronized ((Boolean) unsolved) {
                                 if (unsolved) {
@@ -347,6 +350,7 @@ public class Server {
             while (true)
                 if ("quit".equals(recvMsg()))
                     break;
+            changeConnect(-1);
             die();
         }
 
