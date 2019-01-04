@@ -440,6 +440,7 @@ public class PlayRoom extends UI {
             colorSelector.setEnabled(true);
             strokeSelector.setEnabled(true);
             paintBoard.setMouseDraw(true);
+            clearButton.setEnabled(true);
 
             // The message panel.
             sendButton.setEnabled(false);

@@ -25,7 +25,7 @@ public class Client implements Interact {
         final int MAX_TRIAL = 10;
         Scanner s = new Scanner(System.in);
 
-        System.out.println("Please input IP and PORT of the server:\n" +
+        System.out.print("Please input IP and PORT of the server:\n" +
                 "default is `localhost:12409`, type `default` to use it;\n" +
                 "or type `quit` to exit program.\n" +
                 " >>");
