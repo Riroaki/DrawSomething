@@ -69,6 +69,9 @@ public class WaitingRoom extends UI {
         if (isHost && currentPlayers >= 2) {
             startButton.setEnabled(true);
             startButton.setText("开始游戏");
+        } else if (isHost) {
+            startButton.setEnabled(false);
+            startButton.setText("等待更多人加入游戏");
         }
     }
 }
