@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+// Keep & generates a topic.
 public class TopicGenerator {
     private List<Topic> topicList = new ArrayList<>();
 

@@ -1,5 +1,6 @@
 package server.topic;
 
+// Topic storage.
 public class Topic {
     private String name, type;
     private int length;

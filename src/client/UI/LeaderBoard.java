@@ -6,6 +6,7 @@ import javax.swing.*;
 import java.util.ArrayList;
 import java.util.List;
 
+// UI class for leader board.
 public class LeaderBoard extends UI {
     private JLabel headLabel;
     private JLabel scoreLabel;
@@ -26,6 +27,7 @@ public class LeaderBoard extends UI {
         scores = new ArrayList<>();
     }
 
+    // Set up  UI components.
     @Override
     void setUIComponents() {
         // Restart game.
@@ -55,6 +57,7 @@ public class LeaderBoard extends UI {
                 break;
     }
 
+    // Receive score information from server and parse it.
     private void getScores() {
         String[] res = interact.recvMsg().split(",");
         for (String s : res) {
@@ -64,6 +67,7 @@ public class LeaderBoard extends UI {
         }
     }
 
+    // Show the scores.
     private void renderScores() {
         StringBuilder sb = new StringBuilder("<html>");
         int rank = 0;
@@ -90,6 +94,7 @@ public class LeaderBoard extends UI {
         return panel;
     }
 
+    // Go to next scene.
     @Override
     void nextStage() {
         disappear();

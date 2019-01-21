@@ -12,10 +12,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+// An interface for parsing messages
 interface MsgParser {
     void parse(String[] msg);
 }
 
+// Class to store information of a point.
+// Including position (x,  y), color, stroke, and whether connected to last point.
 class MyPoint extends Point {
     private Color color;
     private int strokeType;
@@ -43,6 +46,7 @@ class MyPoint extends Point {
     }
 }
 
+// UI class of play room.
 public class PlayRoom extends UI {
     private JPanel panel;
     private JTextArea msgText;
@@ -57,6 +61,7 @@ public class PlayRoom extends UI {
     private JLabel hintLabel;
     private JLabel roundLabel;
 
+    // The member variables.
     private boolean gameOver, shouldDraw;
     private int round, timeLeft;
     private String myName;
@@ -78,6 +83,8 @@ public class PlayRoom extends UI {
         aliveList = new ArrayList<>();
     }
 
+    // Set up UI components.
+    // Due to some problems I choose to hard-code the sizes of components...
     @Override
     void setUIComponents() {
         panel = new JPanel();
@@ -485,6 +492,7 @@ public class PlayRoom extends UI {
         }
     }
 
+    // Class for parsing command "right".
     class RightParser implements MsgParser {
         @Override
         public void parse(String[] msg) {
@@ -501,6 +509,7 @@ public class PlayRoom extends UI {
         }
     }
 
+    // Other classes to parse different commands...
     class WrongParser implements MsgParser {
         @Override
         public void parse(String[] msg) {

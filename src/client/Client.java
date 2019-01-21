@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.net.Socket;
 import java.util.Scanner;
 
+// Client part.
 public class Client implements Interact {
     private Socket socket;
     private DataOutputStream output;
@@ -21,10 +22,12 @@ public class Client implements Interact {
         client.run();
     }
 
+    // Initialize the client.
     private int init() {
         final int MAX_TRIAL = 10;
         Scanner s = new Scanner(System.in);
 
+        // Choose a port, default is 12409.
         System.out.print("Please input IP and PORT of the server:\n" +
                 "default is `localhost:12409`, type `default` to use it;\n" +
                 "or type `quit` to exit program.\n" +
@@ -68,12 +71,14 @@ public class Client implements Interact {
         }
     }
 
+    // Main part of client's behavior.
     private void run() {
         // Enter the room.
         Login login = new Login(this);
         login.showAndReact();
     }
 
+    // The callback of sending messages to the server.
     @Override
     public void sendMsg(String msg) {
         try {
@@ -84,6 +89,7 @@ public class Client implements Interact {
         }
     }
 
+    // The callback of receiving messages.
     @Override
     public String recvMsg() {
         try {
@@ -95,7 +101,7 @@ public class Client implements Interact {
         return "";
     }
 
-    // Client dies.
+    // The callback executed when client dies.
     @Override
     public void die(int status) {
         sendMsg("quit");

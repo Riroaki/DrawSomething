@@ -4,6 +4,7 @@ import client.Interact;
 
 import javax.swing.*;
 
+// UI class for waiting room.
 public class WaitingRoom extends UI {
     private JPanel panel;
     private JLabel people;
@@ -25,6 +26,7 @@ public class WaitingRoom extends UI {
         currentPlayers = current;
     }
 
+    // Setting up UI components.
     @Override
     void setUIComponents() {
         whoAmI.setText("我是:" + myName + "，第" + (myIndex + 1) + "位玩家");
@@ -63,6 +65,7 @@ public class WaitingRoom extends UI {
         playroom.showAndReact();
     }
 
+    // Update the people label shown.
     private void updateMsg(int diff) {
         currentPlayers += diff;
         people.setText("房间人数:" + currentPlayers);

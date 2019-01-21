@@ -1,5 +1,6 @@
 package client;
 
+// An interface that regulates the client's callbacks.
 public interface Interact {
     void die(int status);
 

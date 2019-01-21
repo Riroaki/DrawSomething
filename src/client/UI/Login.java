@@ -7,6 +7,7 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.util.regex.Pattern;
 
+// The class for login UI.
 public class Login extends UI {
     private JPanel panel;
     private JTextField userText;
@@ -19,6 +20,7 @@ public class Login extends UI {
         height = 120;
     }
 
+    // Setting up UI components.
     @Override
     void setUIComponents() {
         // Listen while the user types his name.
